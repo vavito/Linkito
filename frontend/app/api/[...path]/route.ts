@@ -12,6 +12,7 @@ async function proxy(request: Request, context: RouteContext) {
 
   headers.delete("host");
   headers.delete("connection");
+  headers.delete("accept-encoding");
 
   const hasBody = !["GET", "HEAD"].includes(request.method);
   const response = await fetch(target, {
@@ -23,6 +24,7 @@ async function proxy(request: Request, context: RouteContext) {
 
   const responseHeaders = new Headers(response.headers);
   responseHeaders.delete("content-encoding");
+  responseHeaders.delete("content-length");
   responseHeaders.delete("transfer-encoding");
 
   return new Response(response.body, {
