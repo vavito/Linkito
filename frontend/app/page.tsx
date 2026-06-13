@@ -112,7 +112,20 @@ async function api<T>(path: string, token?: string | null, init: RequestInit = {
   }
 
   const text = await response.text();
-  return text ? (JSON.parse(text) as T) : (undefined as T);
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!text) {
+    return undefined as T;
+  }
+
+  if (!contentType.includes("application/json")) {
+    return text as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("Resposta invalida do servidor");
+  }
 }
 
 function shortUrl(code: string) {
