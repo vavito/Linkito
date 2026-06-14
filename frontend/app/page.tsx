@@ -891,6 +891,12 @@ function LinksView({
   }
 
   async function remove(link: ShortLink) {
+    const name = link.titulo || link.codigoCurto;
+    const confirmed = window.confirm(`Deseja realmente excluir "${name}"? Esta ação não pode ser desfeita.`);
+    if (!confirmed) {
+      return;
+    }
+
     await api(`/api/links/${link.id}`, token, { method: "DELETE" });
     showToast("Link removido");
     await onChanged();
