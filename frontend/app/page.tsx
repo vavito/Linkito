@@ -8,6 +8,8 @@ import {
   Check,
   ChevronRight,
   Copy,
+  Eye,
+  EyeOff,
   Gauge,
   Home,
   Link2,
@@ -1126,18 +1128,37 @@ function TextInput({
   value?: string;
   onChange?: React.ChangeEventHandler<HTMLInputElement>;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === "password";
+  const inputType = isPassword && showPassword ? "text" : type;
+
   return (
     <label className="grid gap-2">
       <span className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500">{label}</span>
-      <input
-        name={name}
-        type={type}
-        required={required}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className="rounded-2xl border border-white/10 bg-black/35 px-4 py-4 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-[var(--acid)] focus:bg-black/55 focus:shadow-[0_0_0_4px_rgba(215,255,79,0.08)]"
-      />
+      <span className="relative">
+        <input
+          name={name}
+          type={inputType}
+          required={required}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          className={clsx(
+            "w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-4 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-[var(--acid)] focus:bg-black/55 focus:shadow-[0_0_0_4px_rgba(215,255,79,0.08)]",
+            isPassword && "pr-12",
+          )}
+        />
+        {isPassword ? (
+          <button
+            type="button"
+            onClick={() => setShowPassword((current) => !current)}
+            className="absolute right-3 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-xl text-zinc-500 transition hover:bg-white/[0.06] hover:text-white"
+            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+          >
+            {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+          </button>
+        ) : null}
+      </span>
     </label>
   );
 }
