@@ -876,6 +876,8 @@ function LinksView({
   showToast: (message: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [linkToRemove, setLinkToRemove] = useState<ShortLink | null>(null);
+  const [removing, setRemoving] = useState(false);
   const filtered = links.filter((link) => {
     const content = `${link.titulo ?? ""} ${link.urlOriginal} ${link.codigoCurto}`.toLowerCase();
     return content.includes(query.toLowerCase());
@@ -890,75 +892,92 @@ function LinksView({
     await onChanged();
   }
 
-  async function remove(link: ShortLink) {
-    const name = link.titulo || link.codigoCurto;
-    const confirmed = window.confirm(`Deseja realmente excluir "${name}"? Esta ação não pode ser desfeita.`);
-    if (!confirmed) {
+  async function confirmRemove() {
+    if (!linkToRemove) {
       return;
     }
 
-    await api(`/api/links/${link.id}`, token, { method: "DELETE" });
-    showToast("Link removido");
-    await onChanged();
+    setRemoving(true);
+    try {
+      await api(`/api/links/${linkToRemove.id}`, token, { method: "DELETE" });
+      showToast("Link removido");
+      setLinkToRemove(null);
+      await onChanged();
+    } finally {
+      setRemoving(false);
+    }
   }
 
   return (
-    <Panel title="Biblioteca de links" action={`${filtered.length} visiveis`}>
-      <div className="mb-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
-        <Search className="text-zinc-500" size={18} />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar por titulo, destino ou codigo"
-          className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
-        />
-      </div>
+    <>
+      <Panel title="Biblioteca de links" action={`${filtered.length} visiveis`}>
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+          <Search className="text-zinc-500" size={18} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar por titulo, destino ou codigo"
+            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
+          />
+        </div>
 
-      <div className="grid gap-3">
-        {filtered.map((link, index) => (
-          <motion.article
-            key={link.id}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.035 }}
-            className="rounded-3xl border border-white/10 bg-black/30 p-4 transition hover:border-white/20 hover:bg-white/[0.04]"
-          >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="truncate text-lg font-black tracking-[-0.03em] text-white">
-                    {link.titulo || "Link sem titulo"}
-                  </h3>
-                  <span
-                    className={clsx(
-                      "rounded-full px-2.5 py-1 text-xs font-black",
-                      link.ativo ? "bg-[var(--acid)] text-black" : "bg-zinc-800 text-zinc-400",
-                    )}
-                  >
-                    {link.ativo ? "ativo" : "pausado"}
-                  </span>
+        <div className="grid gap-3">
+          {filtered.map((link, index) => (
+            <motion.article
+              key={link.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.035 }}
+              className="rounded-3xl border border-white/10 bg-black/30 p-4 transition hover:border-white/20 hover:bg-white/[0.04]"
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-lg font-black tracking-[-0.03em] text-white">
+                      {link.titulo || "Link sem titulo"}
+                    </h3>
+                    <span
+                      className={clsx(
+                        "rounded-full px-2.5 py-1 text-xs font-black",
+                        link.ativo ? "bg-[var(--acid)] text-black" : "bg-zinc-800 text-zinc-400",
+                      )}
+                    >
+                      {link.ativo ? "ativo" : "pausado"}
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate text-sm font-bold text-[var(--aqua)]">
+                    {shortUrl(link.codigoCurto)}
+                  </p>
+                  <p className="mt-1 truncate text-sm text-zinc-500">{link.urlOriginal}</p>
                 </div>
-                <p className="mt-1 truncate text-sm font-bold text-[var(--aqua)]">
-                  {shortUrl(link.codigoCurto)}
-                </p>
-                <p className="mt-1 truncate text-sm text-zinc-500">{link.urlOriginal}</p>
+                <div className="flex flex-wrap gap-2">
+                  <IconButton label="Copiar" icon={Copy} onClick={() => onCopy(link)} />
+                  <IconButton label="Stats" icon={BarChart3} onClick={() => onStats(link)} />
+                  <IconButton
+                    label={link.ativo ? "Pausar" : "Ativar"}
+                    icon={Power}
+                    onClick={() => void toggle(link)}
+                  />
+                  <IconButton label="Remover" icon={Trash2} onClick={() => setLinkToRemove(link)} danger />
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <IconButton label="Copiar" icon={Copy} onClick={() => onCopy(link)} />
-                <IconButton label="Stats" icon={BarChart3} onClick={() => onStats(link)} />
-                <IconButton
-                  label={link.ativo ? "Pausar" : "Ativar"}
-                  icon={Power}
-                  onClick={() => void toggle(link)}
-                />
-                <IconButton label="Remover" icon={Trash2} onClick={() => void remove(link)} danger />
-              </div>
-            </div>
-          </motion.article>
-        ))}
-        {!filtered.length ? <EmptyState text="Nada encontrado." /> : null}
-      </div>
-    </Panel>
+            </motion.article>
+          ))}
+          {!filtered.length ? <EmptyState text="Nada encontrado." /> : null}
+        </div>
+      </Panel>
+
+      <DeleteLinkDialog
+        link={linkToRemove}
+        loading={removing}
+        onClose={() => {
+          if (!removing) {
+            setLinkToRemove(null);
+          }
+        }}
+        onConfirm={() => void confirmRemove()}
+      />
+    </>
   );
 }
 
@@ -1076,6 +1095,87 @@ function SettingsView({ user, onLogout }: { user: User; onLogout: () => void }) 
         </div>
       </Panel>
     </section>
+  );
+}
+
+function DeleteLinkDialog({
+  link,
+  loading,
+  onClose,
+  onConfirm,
+}: {
+  link: ShortLink | null;
+  loading: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      {link ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4 backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-link-title"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 14, scale: 0.97 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="glass w-full max-w-md rounded-[2rem] p-5 shadow-[0_30px_120px_rgba(0,0,0,0.38)]"
+          >
+            <div className="mb-5 flex items-start gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-red-400/20 bg-red-400/10 text-red-100">
+                <Trash2 size={20} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-red-200">
+                  Remover link
+                </p>
+                <h2 id="delete-link-title" className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">
+                  Excluir este link?
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                  Esta ação remove o link da sua biblioteca e não pode ser desfeita.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/35 p-4">
+              <p className="truncate font-black text-white">{link.titulo || "Link sem titulo"}</p>
+              <p className="mt-1 truncate text-sm font-bold text-[var(--aqua)]">
+                {shortUrl(link.codigoCurto)}
+              </p>
+              <p className="mt-1 truncate text-xs text-zinc-500">{link.urlOriginal}</p>
+            </div>
+
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={loading}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-300 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={loading}
+                className="flex items-center justify-center gap-2 rounded-2xl border border-red-400/20 bg-red-400/15 px-4 py-3 text-sm font-black text-red-100 transition hover:bg-red-400/25 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? <Loader2 className="animate-spin" size={17} /> : <Trash2 size={17} />}
+                Excluir link
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
