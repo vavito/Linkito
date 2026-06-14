@@ -963,8 +963,8 @@ function LinksView({
 
   return (
     <>
-      <Panel title="Biblioteca de links" action={<RefreshButton loading={refreshing} onClick={onRefresh} label={`${filtered.length} visiveis`} />}>
-        <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_220px]">
+      <Panel title="Biblioteca de links" action={<RefreshButton loading={refreshing} onClick={onRefresh} />}>
+        <div className="mb-4 grid gap-3">
           <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
             <Search className="text-zinc-500" size={18} />
             <input
@@ -974,21 +974,7 @@ function LinksView({
               className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
             />
           </div>
-          <label className="rounded-2xl border border-white/10 bg-black/30 px-4 py-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">
-              Ordenar
-            </span>
-            <select
-              value={sort}
-              onChange={(event) => setSort(event.target.value as LinkSort)}
-              className="mt-1 w-full bg-transparent text-sm font-black text-white outline-none"
-            >
-              <option value="recentes">Recentes</option>
-              <option value="antigos">Antigos</option>
-              <option value="mais-acessados">Mais acessados</option>
-              <option value="menos-acessados">Menos acessados</option>
-            </select>
-          </label>
+          <SortControl value={sort} onChange={setSort} />
         </div>
 
         <div className="grid gap-3">
@@ -1131,7 +1117,7 @@ function AnalyticsView({
           </div>
         </Panel>
 
-        <Panel title="Cliques recentes" action={<RefreshButton loading={refreshing} onClick={onRefresh} label={stats ? `${stats.cliques.length} eventos` : "Carregando"} />}>
+        <Panel title="Cliques recentes" action={<RefreshButton loading={refreshing} onClick={onRefresh} />}>
           <div className="grid gap-2">
             {stats?.cliques.slice(0, 8).map((click) => (
               <div key={click.id} className="rounded-2xl border border-white/10 bg-black/30 p-3">
@@ -1163,7 +1149,7 @@ function SettingsView({
 }) {
   return (
     <section className="mx-auto grid w-full max-w-xl gap-4">
-      <Panel title="Conta" action={<RefreshButton loading={refreshing} onClick={onRefresh} label="Perfil" />}>
+      <Panel title="Conta" action={<RefreshButton loading={refreshing} onClick={onRefresh} />}>
         <div className="grid gap-3">
           <ReadOnlyField label="Nome" value={user.nome} />
           <ReadOnlyField label="Email" value={user.email} />
@@ -1386,11 +1372,9 @@ function Panel({
 function RefreshButton({
   loading,
   onClick,
-  label = "Atualizar",
 }: {
   loading: boolean;
   onClick: () => void;
-  label?: string;
 }) {
   return (
     <button
@@ -1401,8 +1385,51 @@ function RefreshButton({
       aria-label="Atualizar dados"
     >
       <RefreshCw className={clsx(loading && "animate-spin")} size={13} />
-      {label}
+      Atualizar
     </button>
+  );
+}
+
+function SortControl({
+  value,
+  onChange,
+}: {
+  value: LinkSort;
+  onChange: (value: LinkSort) => void;
+}) {
+  const options: Array<{ value: LinkSort; label: string }> = [
+    { value: "recentes", label: "Recentes" },
+    { value: "antigos", label: "Antigos" },
+    { value: "mais-acessados", label: "Mais acessados" },
+    { value: "menos-acessados", label: "Menos acessados" },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/30 p-2">
+      <div className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">
+        Ordenar por
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {options.map((option) => {
+          const selected = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChange(option.value)}
+              className={clsx(
+                "rounded-xl border px-3 py-2 text-xs font-black transition",
+                selected
+                  ? "border-[var(--acid)] bg-[var(--acid)] text-black shadow-[0_12px_32px_rgba(215,255,79,0.12)]"
+                  : "border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/20 hover:bg-white/[0.08] hover:text-white",
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
