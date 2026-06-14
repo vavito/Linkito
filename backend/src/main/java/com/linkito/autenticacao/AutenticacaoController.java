@@ -1,6 +1,7 @@
 package com.linkito.autenticacao;
 
 import com.linkito.dto.RequisicoesAutenticacao;
+import com.linkito.dto.RespostaErro;
 import com.linkito.dto.RespostasAutenticacao;
 import com.linkito.seguranca.JwtUtil;
 import com.linkito.servico.UsuarioService;
@@ -33,7 +34,7 @@ public class AutenticacaoController {
     @PostMapping("/register")
     public ResponseEntity<?> cadastrar(@Valid @RequestBody RequisicoesAutenticacao.RequisicaoCadastro requisicao) {
         if (usuarioService.buscarPorEmail(requisicao.email).isPresent()) {
-            return ResponseEntity.badRequest().body("Email ja esta em uso");
+            return ResponseEntity.badRequest().body(new RespostaErro("Email já está em uso"));
         }
 
         var usuarioCriado = usuarioService.cadastrar(requisicao.nome, requisicao.email, requisicao.senha);
