@@ -104,7 +104,7 @@ async function api<T>(path: string, token?: string | null, init: RequestInit = {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Erro ${response.status}`);
+    throw new Error(extractErrorMessage(text) || `Erro ${response.status}`);
   }
 
   if (response.status === 204) {
@@ -816,7 +816,7 @@ function CreateView({
             required
           />
           <TextInput
-            label="Titulo"
+            label="Título (opcional)"
             name="titulo"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
@@ -1282,9 +1282,34 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function extractErrorMessage(text: string) {
+  if (!text) {
+    return "";
+  }
+
+  try {
+    const data = JSON.parse(text) as { mensagem?: string; message?: string; error?: string };
+    return data.mensagem ?? data.message ?? data.error ?? text;
+  } catch {
+    return text;
+  }
+}
+
 function normalizeError(error: string) {
   if (error.includes("credenciais-invalidas")) {
     return "Email ou senha invalidos.";
+  }
+
+  if (error.includes("Email já está em uso") || error.includes("Email ja esta em uso")) {
+    return "Email já está em uso.";
+  }
+
+  if (error.includes("URL válida") || error.includes("URL valida")) {
+    return "Informe uma URL válida com http:// ou https://.";
+  }
+
+  if (error.includes("email válido") || error.includes("email valido")) {
+    return "Informe um email válido.";
   }
 
   if (error.toLowerCase().includes("failed to fetch")) {

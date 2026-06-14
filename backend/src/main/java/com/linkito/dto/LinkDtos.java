@@ -7,20 +7,21 @@ import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 public class LinkDtos {
+    private static final String URL_PATTERN = "^https?://([a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,}(:\\d{2,5})?([/?#]\\S*)?$";
 
     public static class RequisicaoCriarLink {
         @Size(max = 150)
         public String titulo;
 
-        @NotBlank
-        @Pattern(regexp = "^https?://.+", message = "urlOriginal deve comecar com http:// ou https://")
+        @NotBlank(message = "Informe a URL original.")
+        @Pattern(regexp = URL_PATTERN, message = "Informe uma URL válida com http:// ou https://.")
         public String urlOriginal;
     }
 
     public static class RequisicaoAtualizarLink {
         @Size(max = 150)
         public String titulo;
-        @Pattern(regexp = "^https?://.+", message = "urlOriginal deve comecar com http:// ou https://")
+        @Pattern(regexp = URL_PATTERN, message = "Informe uma URL válida com http:// ou https://.")
         public String urlOriginal;
         public Boolean ativo;
     }
