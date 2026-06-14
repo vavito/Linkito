@@ -596,7 +596,7 @@ function Sidebar({
         <button
           type="button"
           onClick={onLogout}
-          className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-300 transition hover:bg-white/[0.08] hover:text-white"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-300 transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-100"
         >
           <LogOut size={17} />
           Sair
@@ -1051,19 +1051,12 @@ function AnalyticsView({
 
 function SettingsView({ user, onLogout }: { user: User; onLogout: () => void }) {
   return (
-    <section className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
+    <section className="mx-auto grid w-full max-w-xl gap-4">
       <Panel title="Conta" action="Perfil">
         <div className="grid gap-3">
           <ReadOnlyField label="Nome" value={user.nome} />
           <ReadOnlyField label="Email" value={user.email} />
           <ReadOnlyField label="Perfil" value={user.perfil} />
-        </div>
-      </Panel>
-      <Panel title="Preferencias" action="Local">
-        <div className="grid gap-3">
-          <FeatureLine title="Tema dark permanente" body="O Linkito foi desenhado primeiro para baixa luz e foco." />
-          <FeatureLine title="Backend proxy" body="O Next encaminha chamadas para o Spring Boot sem expor CORS." />
-          <FeatureLine title="Base publica" body="Configure NEXT_PUBLIC_PUBLIC_URL para o dominio final." />
           <button
             type="button"
             onClick={onLogout}
