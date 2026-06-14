@@ -391,7 +391,15 @@ export default function Page() {
               />
             ) : null}
             {view === "settings" ? (
-              <SettingsView user={user} onLogout={logout} onRefresh={refresh} refreshing={refreshing} />
+              <SettingsView
+                user={user}
+                token={token}
+                onUserUpdated={setUser}
+                onLogout={logout}
+                onRefresh={refresh}
+                refreshing={refreshing}
+                showToast={showToast}
+              />
             ) : null}
           </motion.div>
         </AnimatePresence>
@@ -1167,22 +1175,164 @@ function AnalyticsView({
 
 function SettingsView({
   user,
+  token,
+  onUserUpdated,
   onLogout,
   onRefresh,
   refreshing,
+  showToast,
 }: {
   user: User;
+  token: string;
+  onUserUpdated: (user: User) => void;
   onLogout: () => void;
   onRefresh: () => void;
   refreshing: boolean;
+  showToast: (message: string) => void;
 }) {
+  const [name, setName] = useState(user.nome);
+  const [email, setEmail] = useState(user.email);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  useEffect(() => {
+    setName(user.nome);
+    setEmail(user.email);
+  }, [user.email, user.nome]);
+
+  async function submitProfile(event: FormEvent) {
+    event.preventDefault();
+    setSavingProfile(true);
+    setProfileError(null);
+
+    try {
+      const updated = await api<User>("/api/auth/me", token, {
+        method: "PUT",
+        body: JSON.stringify({ nome: name.trim(), email: email.trim() }),
+      });
+      onUserUpdated(updated);
+      showToast("Perfil atualizado");
+    } catch (err) {
+      setProfileError(err instanceof Error ? normalizeError(err.message) : "Nao foi possivel atualizar");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function submitPassword(event: FormEvent) {
+    event.preventDefault();
+    setSavingPassword(true);
+    setPasswordError(null);
+
+    try {
+      await api("/api/auth/password", token, {
+        method: "PUT",
+        body: JSON.stringify({ senhaAtual: currentPassword, novaSenha: newPassword }),
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      showToast("Senha atualizada");
+    } catch (err) {
+      setPasswordError(err instanceof Error ? normalizeError(err.message) : "Nao foi possivel alterar a senha");
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
   return (
-    <section className="mx-auto grid w-full max-w-xl gap-4">
+    <section className="mx-auto grid w-full max-w-3xl gap-4">
       <Panel title="Conta" action={<RefreshButton loading={refreshing} onClick={onRefresh} />}>
-        <div className="grid gap-3">
-          <ReadOnlyField label="Nome" value={user.nome} />
-          <ReadOnlyField label="Email" value={user.email} />
+        <form onSubmit={submitProfile} className="grid gap-3">
+          <TextInput
+            label="Nome"
+            name="nome"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Seu nome"
+            required
+          />
+          <TextInput
+            label="Email"
+            name="email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="voce@email.com"
+            required
+          />
           <ReadOnlyField label="Perfil" value={user.perfil} />
+          <AnimatePresence>
+            {profileError ? (
+              <motion.p
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-100"
+              >
+                {profileError}
+              </motion.p>
+            ) : null}
+          </AnimatePresence>
+          <button
+            type="submit"
+            disabled={savingProfile}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--acid)] px-4 py-3 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {savingProfile ? <Loader2 className="animate-spin" size={17} /> : <Check size={17} />}
+            Salvar perfil
+          </button>
+        </form>
+      </Panel>
+
+      <Panel title="Senha" action="Seguranca">
+        <form onSubmit={submitPassword} className="grid gap-3">
+          <TextInput
+            label="Senha atual"
+            name="senhaAtual"
+            type="password"
+            value={currentPassword}
+            onChange={(event) => setCurrentPassword(event.target.value)}
+            placeholder="Sua senha atual"
+            required
+          />
+          <TextInput
+            label="Nova senha"
+            name="novaSenha"
+            type="password"
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
+            placeholder="Minimo 6 caracteres"
+            required
+          />
+          <AnimatePresence>
+            {passwordError ? (
+              <motion.p
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-100"
+              >
+                {passwordError}
+              </motion.p>
+            ) : null}
+          </AnimatePresence>
+          <button
+            type="submit"
+            disabled={savingPassword}
+            className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {savingPassword ? <Loader2 className="animate-spin" size={17} /> : <ShieldCheck size={17} />}
+            Alterar senha
+          </button>
+        </form>
+      </Panel>
+
+      <Panel title="Sessao" action="Sair">
+        <div className="grid gap-3">
           <button
             type="button"
             onClick={onLogout}
@@ -1597,6 +1747,10 @@ function normalizeError(error: string) {
 
   if (error.includes("email válido") || error.includes("email valido")) {
     return "Informe um email válido.";
+  }
+
+  if (error.includes("Senha atual invalida") || error.includes("Senha atual inválida")) {
+    return "Senha atual inválida.";
   }
 
   if (error.toLowerCase().includes("failed to fetch")) {
