@@ -28,7 +28,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 
 type View = "home" | "create" | "links" | "analytics" | "settings";
@@ -75,6 +75,8 @@ type LinkStats = {
 
 const API_BASE = "";
 const PUBLIC_BASE = process.env.NEXT_PUBLIC_PUBLIC_URL ?? "http://localhost:8080";
+const AUTO_REFRESH_INTERVAL_MS = 30_000;
+const AUTO_REFRESH_VIEWS: View[] = ["home", "links", "analytics", "settings"];
 
 const navItems: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "home", label: "Inicio", icon: Home },
@@ -150,6 +152,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const autoRefreshingRef = useRef(false);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -247,6 +250,32 @@ export default function Page() {
       setRefreshing(false);
     }
   }
+
+  const autoRefresh = useCallback(async () => {
+    if (!token || autoRefreshingRef.current || document.visibilityState !== "visible") {
+      return;
+    }
+
+    autoRefreshingRef.current = true;
+    try {
+      await loadApp(token, { showLoading: false });
+      await loadStats(token, selectedLinkId);
+    } finally {
+      autoRefreshingRef.current = false;
+    }
+  }, [loadApp, loadStats, selectedLinkId, token]);
+
+  useEffect(() => {
+    if (!token || !AUTO_REFRESH_VIEWS.includes(view)) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void autoRefresh();
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [autoRefresh, token, view]);
 
   async function copyLink(link: ShortLink) {
     await navigator.clipboard.writeText(shortUrl(link.codigoCurto));
