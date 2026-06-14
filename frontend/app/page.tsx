@@ -19,6 +19,7 @@ import {
   MousePointerClick,
   Plus,
   Power,
+  RefreshCw,
   Search,
   Settings,
   ShieldCheck,
@@ -144,6 +145,7 @@ export default function Page() {
   const [view, setView] = useState<View>("home");
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = useCallback((message: string) => {
@@ -152,8 +154,11 @@ export default function Page() {
   }, []);
 
   const loadApp = useCallback(
-    async (currentToken: string) => {
-      setLoading(true);
+    async (currentToken: string, options: { showLoading?: boolean } = {}) => {
+      const showLoading = options.showLoading ?? true;
+      if (showLoading) {
+        setLoading(true);
+      }
       try {
         const [profile, nextDashboard, nextLinks] = await Promise.all([
           api<User>("/api/auth/me", currentToken),
@@ -170,7 +175,9 @@ export default function Page() {
         setToken(null);
         setUser(null);
       } finally {
-        setLoading(false);
+        if (showLoading) {
+          setLoading(false);
+        }
       }
     },
     [],
@@ -186,22 +193,25 @@ export default function Page() {
     }
   }, [loadApp]);
 
-  useEffect(() => {
-    async function loadStats() {
-      if (!token || !selectedLinkId) {
+  const loadStats = useCallback(
+    async (currentToken: string | null, linkId: string | null) => {
+      if (!currentToken || !linkId) {
         setStats(null);
         return;
       }
 
       try {
-        setStats(await api<LinkStats>(`/api/stats/links/${selectedLinkId}`, token));
+        setStats(await api<LinkStats>(`/api/stats/links/${linkId}`, currentToken));
       } catch {
         setStats(null);
       }
-    }
+    },
+    [],
+  );
 
-    void loadStats();
-  }, [selectedLinkId, token]);
+  useEffect(() => {
+    void loadStats(token, selectedLinkId);
+  }, [loadStats, selectedLinkId, token]);
 
   async function handleAuthenticated(nextToken: string) {
     localStorage.setItem("linkito_token", nextToken);
@@ -216,12 +226,22 @@ export default function Page() {
     setLinks([]);
     setDashboard(null);
     setStats(null);
+    setRefreshing(false);
     setView("home");
   }
 
   async function refresh() {
-    if (token) {
-      await loadApp(token);
+    if (!token || refreshing) {
+      return;
+    }
+
+    setRefreshing(true);
+    try {
+      await loadApp(token, { showLoading: false });
+      await loadStats(token, selectedLinkId);
+      showToast("Dados atualizados");
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -297,6 +317,8 @@ export default function Page() {
                 links={links}
                 onCreate={() => setView("create")}
                 onCopy={copyLink}
+                onRefresh={refresh}
+                refreshing={refreshing}
               />
             ) : null}
             {view === "create" ? (
@@ -322,6 +344,8 @@ export default function Page() {
                   setView("analytics");
                 }}
                 showToast={showToast}
+                onRefresh={refresh}
+                refreshing={refreshing}
               />
             ) : null}
             {view === "analytics" ? (
@@ -330,9 +354,13 @@ export default function Page() {
                 selectedLinkId={selectedLinkId}
                 onSelect={setSelectedLinkId}
                 stats={stats}
+                onRefresh={refresh}
+                refreshing={refreshing}
               />
             ) : null}
-            {view === "settings" ? <SettingsView user={user} onLogout={logout} /> : null}
+            {view === "settings" ? (
+              <SettingsView user={user} onLogout={logout} onRefresh={refresh} refreshing={refreshing} />
+            ) : null}
           </motion.div>
         </AnimatePresence>
       </section>
@@ -668,11 +696,15 @@ function HomeView({
   links,
   onCreate,
   onCopy,
+  onRefresh,
+  refreshing,
 }: {
   dashboard: Dashboard | null;
   links: ShortLink[];
   onCreate: () => void;
   onCopy: (link: ShortLink) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
 }) {
   const best = dashboard?.linkMaisAcessado ?? links.toSorted((a, b) => b.totalCliques - a.totalCliques)[0];
   const activeLinks = links.filter((link) => link.ativo).length;
@@ -716,7 +748,7 @@ function HomeView({
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_0.8fr]">
-        <Panel title="Links recentes" action="Ultimos criados">
+        <Panel title="Links recentes" action={<RefreshButton loading={refreshing} onClick={onRefresh} />}>
           <div className="grid gap-2">
             {(dashboard?.ultimosLinks?.length ? dashboard.ultimosLinks : links.slice(0, 5)).map((link) => (
               <LinkRow key={link.id} link={link} onCopy={() => onCopy(link)} />
@@ -867,6 +899,8 @@ function LinksView({
   onCopy,
   onStats,
   showToast,
+  onRefresh,
+  refreshing,
 }: {
   token: string;
   links: ShortLink[];
@@ -874,6 +908,8 @@ function LinksView({
   onCopy: (link: ShortLink) => void;
   onStats: (link: ShortLink) => void;
   showToast: (message: string) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [linkToRemove, setLinkToRemove] = useState<ShortLink | null>(null);
@@ -910,7 +946,7 @@ function LinksView({
 
   return (
     <>
-      <Panel title="Biblioteca de links" action={`${filtered.length} visiveis`}>
+      <Panel title="Biblioteca de links" action={<RefreshButton loading={refreshing} onClick={onRefresh} label={`${filtered.length} visiveis`} />}>
         <div className="mb-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
           <Search className="text-zinc-500" size={18} />
           <input
@@ -986,11 +1022,15 @@ function AnalyticsView({
   selectedLinkId,
   onSelect,
   stats,
+  onRefresh,
+  refreshing,
 }: {
   links: ShortLink[];
   selectedLinkId: string | null;
   onSelect: (id: string) => void;
   stats: LinkStats | null;
+  onRefresh: () => void;
+  refreshing: boolean;
 }) {
   const selected = links.find((link) => link.id === selectedLinkId) ?? links[0];
   const maxClicks = Math.max(...links.map((link) => link.totalCliques), 1);
@@ -1057,7 +1097,7 @@ function AnalyticsView({
           </div>
         </Panel>
 
-        <Panel title="Cliques recentes" action={stats ? `${stats.cliques.length} eventos` : "Carregando"}>
+        <Panel title="Cliques recentes" action={<RefreshButton loading={refreshing} onClick={onRefresh} label={stats ? `${stats.cliques.length} eventos` : "Carregando"} />}>
           <div className="grid gap-2">
             {stats?.cliques.slice(0, 8).map((click) => (
               <div key={click.id} className="rounded-2xl border border-white/10 bg-black/30 p-3">
@@ -1076,10 +1116,20 @@ function AnalyticsView({
   );
 }
 
-function SettingsView({ user, onLogout }: { user: User; onLogout: () => void }) {
+function SettingsView({
+  user,
+  onLogout,
+  onRefresh,
+  refreshing,
+}: {
+  user: User;
+  onLogout: () => void;
+  onRefresh: () => void;
+  refreshing: boolean;
+}) {
   return (
     <section className="mx-auto grid w-full max-w-xl gap-4">
-      <Panel title="Conta" action="Perfil">
+      <Panel title="Conta" action={<RefreshButton loading={refreshing} onClick={onRefresh} label="Perfil" />}>
         <div className="grid gap-3">
           <ReadOnlyField label="Nome" value={user.nome} />
           <ReadOnlyField label="Email" value={user.email} />
@@ -1275,7 +1325,7 @@ function Panel({
   children,
 }: {
   title: string;
-  action: string;
+  action: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -1286,12 +1336,39 @@ function Panel({
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-black tracking-[-0.03em] text-white">{title}</h2>
-        <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs font-black text-zinc-400">
-          {action}
-        </span>
+        {typeof action === "string" ? (
+          <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs font-black text-zinc-400">
+            {action}
+          </span>
+        ) : (
+          action
+        )}
       </div>
       {children}
     </motion.section>
+  );
+}
+
+function RefreshButton({
+  loading,
+  onClick,
+  label = "Atualizar",
+}: {
+  loading: boolean;
+  onClick: () => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading}
+      className="flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs font-black text-zinc-400 transition hover:border-[var(--acid)]/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+      aria-label="Atualizar dados"
+    >
+      <RefreshCw className={clsx(loading && "animate-spin")} size={13} />
+      {label}
+    </button>
   );
 }
 
