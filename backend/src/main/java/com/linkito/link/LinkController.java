@@ -103,6 +103,7 @@ public class LinkController {
         resposta.totalCliques = link.getTotalCliques();
         resposta.ativo = link.isAtivo();
         resposta.usuarioId = link.getUsuarioId();
+        resposta.criadoEm = link.getCriadoEm();
         return resposta;
     }
 }

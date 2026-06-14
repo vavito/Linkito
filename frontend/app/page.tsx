@@ -49,7 +49,10 @@ type ShortLink = {
   totalCliques: number;
   ativo: boolean;
   usuarioId: string;
+  criadoEm: string;
 };
+
+type LinkSort = "recentes" | "antigos" | "mais-acessados" | "menos-acessados";
 
 type Dashboard = {
   totalLinks: number;
@@ -912,11 +915,25 @@ function LinksView({
   refreshing: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<LinkSort>("recentes");
   const [linkToRemove, setLinkToRemove] = useState<ShortLink | null>(null);
   const [removing, setRemoving] = useState(false);
   const filtered = links.filter((link) => {
     const content = `${link.titulo ?? ""} ${link.urlOriginal} ${link.codigoCurto}`.toLowerCase();
     return content.includes(query.toLowerCase());
+  });
+  const sortedLinks = filtered.toSorted((a, b) => {
+    if (sort === "mais-acessados") {
+      return b.totalCliques - a.totalCliques;
+    }
+
+    if (sort === "menos-acessados") {
+      return a.totalCliques - b.totalCliques;
+    }
+
+    const dateA = new Date(a.criadoEm).getTime();
+    const dateB = new Date(b.criadoEm).getTime();
+    return sort === "antigos" ? dateA - dateB : dateB - dateA;
   });
 
   async function toggle(link: ShortLink) {
@@ -947,18 +964,35 @@ function LinksView({
   return (
     <>
       <Panel title="Biblioteca de links" action={<RefreshButton loading={refreshing} onClick={onRefresh} label={`${filtered.length} visiveis`} />}>
-        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
-          <Search className="text-zinc-500" size={18} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar por titulo, destino ou codigo"
-            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
-          />
+        <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_220px]">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+            <Search className="text-zinc-500" size={18} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar por titulo, destino ou codigo"
+              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
+            />
+          </div>
+          <label className="rounded-2xl border border-white/10 bg-black/30 px-4 py-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">
+              Ordenar
+            </span>
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value as LinkSort)}
+              className="mt-1 w-full bg-transparent text-sm font-black text-white outline-none"
+            >
+              <option value="recentes">Recentes</option>
+              <option value="antigos">Antigos</option>
+              <option value="mais-acessados">Mais acessados</option>
+              <option value="menos-acessados">Menos acessados</option>
+            </select>
+          </label>
         </div>
 
         <div className="grid gap-3">
-          {filtered.map((link, index) => (
+          {sortedLinks.map((link, index) => (
             <motion.article
               key={link.id}
               initial={{ opacity: 0, y: 16 }}
@@ -999,7 +1033,7 @@ function LinksView({
               </div>
             </motion.article>
           ))}
-          {!filtered.length ? <EmptyState text="Nada encontrado." /> : null}
+          {!sortedLinks.length ? <EmptyState text="Nada encontrado." /> : null}
         </div>
       </Panel>
 
