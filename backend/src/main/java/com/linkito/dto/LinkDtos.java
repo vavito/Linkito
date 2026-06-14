@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public class LinkDtos {
@@ -34,5 +35,6 @@ public class LinkDtos {
         public long totalCliques;
         public boolean ativo;
         public UUID usuarioId;
+        public LocalDateTime criadoEm;
     }
 }
