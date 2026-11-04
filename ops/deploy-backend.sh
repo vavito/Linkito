@@ -8,6 +8,7 @@ readonly CANDIDATE_NAME="linkito-backend-candidate"
 readonly RETIRING_NAME="linkito-backend-retiring"
 readonly PREVIOUS_NAME="linkito-backend-previous"
 readonly ENV_FILE="/opt/linkito/backend.env"
+readonly CERTS_DIR="/opt/linkito/certs"
 readonly NETWORK="linkito-net"
 readonly MEMORY_LIMIT="768m"
 readonly CPU_LIMIT="1"
@@ -27,6 +28,11 @@ fi
 
 if [[ ! -s "$ENV_FILE" ]]; then
   echo "Backend environment file is missing or empty; existing service was not changed." >&2
+  exit 1
+fi
+
+if [[ ! -r "$CERTS_DIR/us-east-1-bundle.pem" ]]; then
+  echo "RDS CA bundle is missing or unreadable; existing service was not changed." >&2
   exit 1
 fi
 
@@ -125,6 +131,7 @@ docker run --detach \
   --name "$CANDIDATE_NAME" \
   --network "$NETWORK" \
   --publish 127.0.0.1:18080:8080 \
+  --mount "type=bind,source=$CERTS_DIR,target=/app/certs,readonly" \
   --env-file "$ENV_FILE" \
   --memory "$MEMORY_LIMIT" \
   --cpus "$CPU_LIMIT" \
@@ -140,6 +147,7 @@ docker run --detach \
   --name "$CONTAINER_NAME" \
   --network "$NETWORK" \
   --publish 127.0.0.1:8080:8080 \
+  --mount "type=bind,source=$CERTS_DIR,target=/app/certs,readonly" \
   --env-file "$ENV_FILE" \
   --memory "$MEMORY_LIMIT" \
   --cpus "$CPU_LIMIT" \
