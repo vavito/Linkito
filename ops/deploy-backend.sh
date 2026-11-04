@@ -149,7 +149,7 @@ docker run --detach \
   --log-driver awslogs \
   --log-opt "awslogs-region=$AWS_REGION" \
   --log-opt "awslogs-group=/linkito/backend" \
-  --log-opt "awslogs-stream-prefix=linkito-backend" \
+  --log-opt "awslogs-stream=linkito-backend" \
   --log-opt awslogs-create-group=false \
   --publish 127.0.0.1:8080:8080 \
   --mount "type=bind,source=$CERTS_DIR,target=/app/certs,readonly" \

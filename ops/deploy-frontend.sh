@@ -240,7 +240,7 @@ docker run --detach \
   --log-driver awslogs \
   --log-opt "awslogs-region=$AWS_REGION" \
   --log-opt "awslogs-group=/linkito/frontend" \
-  --log-opt "awslogs-stream-prefix=linkito-frontend" \
+  --log-opt "awslogs-stream=linkito-frontend" \
   --log-opt awslogs-create-group=false \
   --publish "127.0.0.1:${PRODUCTION_HOST_PORT}:3000" \
   --env "BACKEND_URL=$backend_url" \
