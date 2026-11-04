@@ -1,0 +1,167 @@
+name: CI and ECR publication
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/**"
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/**"
+
+concurrency:
+  group: linkito-ci-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backend-ci:
+    name: Backend tests
+    uses: ./.github/workflows/backend-ci.yml
+
+  frontend-ci:
+    name: Frontend build
+    uses: ./.github/workflows/frontend-ci.yml
+
+  publish-ecr:
+    name: Build and publish ECR images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - backend-ci
+      - frontend-ci
+    runs-on: ubuntu-latest
+    environment: Production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: us-east-1
+      ECR_REGISTRY: 482545366347.dkr.ecr.us-east-1.amazonaws.com
+      IMAGE_TAG: sha-${{ github.sha }}
+      NEXT_PUBLIC_PUBLIC_URL: ${{ vars.NEXT_PUBLIC_PUBLIC_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::482545366347:role/linkito-github-deploy-role
+          role-session-name: LinkitoECR-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: "482545366347"
+
+      - name: Log in to Amazon ECR
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+      - name: Check whether this commit is already published
+        id: existing-images
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          image_exists() {
+            local repository="$1"
+            local error_file
+            error_file="$(mktemp)"
+
+            if aws ecr describe-images \
+              --region "$AWS_REGION" \
+              --repository-name "$repository" \
+              --image-ids "imageTag=$IMAGE_TAG" \
+              >/dev/null 2>"$error_file"; then
+              rm -f "$error_file"
+              return 0
+            fi
+
+            if grep -q "ImageNotFoundException" "$error_file"; then
+              rm -f "$error_file"
+              return 1
+            fi
+
+            cat "$error_file" >&2
+            rm -f "$error_file"
+            return 2
+          }
+
+          if image_exists linkito-backend; then
+            backend_status=0
+          else
+            backend_status=$?
+          fi
+
+          if image_exists linkito-frontend; then
+            frontend_status=0
+          else
+            frontend_status=$?
+          fi
+
+          if [[ "$backend_status" -eq 2 || "$frontend_status" -eq 2 ]]; then
+            echo "Could not check the existing ECR tags." >&2
+            exit 1
+          fi
+
+          echo "backend_exists=$([[ "$backend_status" -eq 0 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "frontend_exists=$([[ "$frontend_status" -eq 0 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Build both container images
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$NEXT_PUBLIC_PUBLIC_URL" || "$NEXT_PUBLIC_PUBLIC_URL" != https://* ]]; then
+            echo "Production environment variable NEXT_PUBLIC_PUBLIC_URL must contain an HTTPS URL." >&2
+            exit 1
+          fi
+
+          docker build \
+            --tag "$ECR_REGISTRY/linkito-backend:$IMAGE_TAG" \
+            ./backend
+
+          docker build \
+            --build-arg "NEXT_PUBLIC_PUBLIC_URL=$NEXT_PUBLIC_PUBLIC_URL" \
+            --tag "$ECR_REGISTRY/linkito-frontend:$IMAGE_TAG" \
+            ./frontend
+
+      - name: Publish images to ECR
+        env:
+          BACKEND_EXISTS: ${{ steps.existing-images.outputs.backend_exists }}
+          FRONTEND_EXISTS: ${{ steps.existing-images.outputs.frontend_exists }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$BACKEND_EXISTS" == "false" ]]; then
+            docker push "$ECR_REGISTRY/linkito-backend:$IMAGE_TAG"
+          else
+            echo "Backend image $IMAGE_TAG already exists; keeping its immutable tag."
+          fi
+
+          if [[ "$FRONTEND_EXISTS" == "false" ]]; then
+            docker push "$ECR_REGISTRY/linkito-frontend:$IMAGE_TAG"
+          else
+            echo "Frontend image $IMAGE_TAG already exists; keeping its immutable tag."
+          fi
+
+      - name: Verify ECR image digests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for repository in linkito-backend linkito-frontend; do
+            digest="$(aws ecr describe-images \
+              --region "$AWS_REGION" \
+              --repository-name "$repository" \
+              --image-ids "imageTag=$IMAGE_TAG" \
+              --query 'imageDetails[0].imageDigest' \
+              --output text)"
+            echo "$repository:$IMAGE_TAG $digest" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
