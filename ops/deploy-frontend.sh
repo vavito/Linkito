@@ -64,7 +64,7 @@ if [[ "$current_state" != "running" || "$current_memory" != "402653184" || "$cur
   exit 1
 fi
 
-if [[ "$current_ports" != *"127.0.0.1:$PRODUCTION_HOST_PORT"* || " $current_networks " != *" $NETWORK "* ]]; then
+if [[ "$current_ports" != *'"HostIp":"127.0.0.1"'* || "$current_ports" != *'"HostPort":"3000"'* || " $current_networks " != *" $NETWORK "* ]]; then
   echo "Current frontend port binding or Docker network differs from the expected configuration; refusing deployment." >&2
   exit 1
 fi
