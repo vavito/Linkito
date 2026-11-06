@@ -15,8 +15,6 @@ Encurtador full stack para criar, administrar e analisar links curtos. O fronten
 
 **Demonstração:** [https://100.58.229.18](https://100.58.229.18/) — endereço IPv4 público atual da EC2, sujeito a mudança se a instância for parada e iniciada novamente.
 
-## Painel do Linkito
-
 <p align="center"><a href="docs/assets/dashboard.png"><img src="docs/assets/dashboard.png" alt="Painel principal do Linkito" width="100%"></a></p>
 
 ## Telas
