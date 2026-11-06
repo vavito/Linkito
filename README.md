@@ -1,8 +1,23 @@
 # Linkito
 
+![Java 21](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot 3](https://img.shields.io/badge/Spring_Boot-3-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white)
+![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-EC2%20%7C%20RDS%20%7C%20ECR-232F3E?style=flat-square&logo=amazonaws&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-IaC-844FBA?style=flat-square&logo=terraform&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?style=flat-square&logo=githubactions&logoColor=white)
+
 Encurtador full stack para criar, administrar e analisar links curtos. O frontend Next.js consome uma API REST Spring Boot; os dados são persistidos em PostgreSQL e a aplicação roda em containers Docker na AWS.
 
 **Demonstração:** [https://100.58.229.18](https://100.58.229.18/) — endereço IPv4 público atual da EC2, sujeito a mudança se a instância for parada e iniciada novamente.
+
+## Painel do Linkito
+
+<p align="center"><a href="docs/assets/dashboard.png"><img src="docs/assets/dashboard.png" alt="Painel principal do Linkito" width="100%"></a></p>
 
 ## Telas
 
